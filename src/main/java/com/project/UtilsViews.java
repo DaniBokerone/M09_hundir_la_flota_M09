@@ -50,6 +50,16 @@ public class UtilsViews {
         return null;
     }
 
+    // Get name of active view
+    public static String getActiveView() {
+        for (Node n : parentContainer.getChildren()) {
+            if (n.isVisible()) {
+                return n.getId();
+            }
+        }
+        return null; // No hi ha cap vista activa
+    }
+
     // Set visible view by its id (viewId)
     public static void setView(String viewId) {
 

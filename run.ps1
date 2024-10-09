@@ -35,16 +35,42 @@ $env:MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.
 # Resta de l'script
 
 # Check for the first argument and set it as the main class
+# Obtén los argumentos
 $mainClass = $args[0]
+$action = $args[1]
+
+# Define la plataforma JavaFX
+$javafx_platform = "win"
+
+# Configura MAVEN_OPTS
+$MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --module-path $FX_PATH --add-modules javafx.controls,javafx.fxml,javafx.graphics"
+# Opcions específiques per a Windows
+$MAVEN_OPTS += " -Xdock:icon=./target/classes/icons/iconOSX.png" # Si necessites aquesta opció, la pots mantenir
 
 Write-Output "Setting MAVEN_OPTS to: $MAVEN_OPTS"
 Write-Output "Main Class: $mainClass"
 
-# Split the execArg into an array
-$javafx_platform = "win"
-$execArgs = @("-PrunMain", "-Dexec.mainClass=$mainClass", "-Djavafx.platform=$javafx_platform")
+if ($action -eq "build") {
+    Write-Output "Generating JAR file with all dependencies..."
+    mvn clean package -Dmaven.test.skip=true
+    Write-Output "JAR generation completed."
+    
+    # Comprova si el JAR ha estat creat correctament
+    $jarPath = "target\server-package.jar"  # Substitueix per el nom que has definit
+    if (Test-Path $jarPath) {
+        Write-Output "Successfully generated JAR: $jarPath"
+    } else {
+        Write-Output "Failed to generate JAR."
+        exit 1
+    }
+    
+    exit 0
+} else {
+    # Executa la comanda mvn amb els arguments
+    $execArgs = @("-PrunMain", "-Dexec.mainClass=$mainClass", "-Djavafx.platform=$javafx_platform")
+    Write-Output "Exec args: $($execArgs -join ' ')"
 
-Write-Output "Exec args: $($execArgs -join ' ')"
+    # Executa la comanda mvn
+    mvn clean test-compile exec:java $execArgs
+}
 
-# Execute mvn command
-mvn clean test-compile exec:java $execArgs
