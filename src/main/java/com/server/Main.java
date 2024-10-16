@@ -1,4 +1,4 @@
-package com.project;
+package com.server;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -25,7 +25,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.java_websocket.exceptions.WebsocketNotConnectedException;
 
-public class Server extends WebSocketServer {
+public class Main extends WebSocketServer {
 
     private static final List<String> PLAYER_NAMES = Arrays.asList("A", "B");
 
@@ -35,7 +35,7 @@ public class Server extends WebSocketServer {
 
     private static Map<String, JSONObject> selectableObjects = new HashMap<>();
 
-    public Server(InetSocketAddress address) {
+    public Main(InetSocketAddress address) {
         super(address);
         clients = new ConcurrentHashMap<>();
         resetAvailableNames();
@@ -263,7 +263,7 @@ public class Server extends WebSocketServer {
         String systemName = askSystemName();
 
         // WebSockets server
-        Server server = new Server(new InetSocketAddress(3000));
+        Main server = new Main(new InetSocketAddress(3000));
         server.start();
         
         LineReader reader = LineReaderBuilder.builder().build();

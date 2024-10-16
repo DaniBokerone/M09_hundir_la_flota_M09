@@ -31,7 +31,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>com.project.Server</mainClass>
+                  <mainClass>com.server.Main</mainClass>
                 </transformer>
               </transformers>
               <finalName>server-package</finalName>

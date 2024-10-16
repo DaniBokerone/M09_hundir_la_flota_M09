@@ -1,4 +1,5 @@
-package com.project;
+package com.client;
+
 import java.net.URL;
 import java.util.ResourceBundle;
 
@@ -27,7 +28,7 @@ public class CtrlConfig implements Initializable {
 
     @FXML
     private void connectToServer() {
-        ClientFX.connectToServer();
+        Main.connectToServer();
     }
 
     @FXML

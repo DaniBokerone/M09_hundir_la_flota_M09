@@ -1,4 +1,5 @@
-package com.project;
+package com.client;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.Executors;

@@ -1,4 +1,4 @@
-package com.project;
+package com.client;
 
 public class PlayGrid {
 

@@ -1,4 +1,4 @@
-package com.project;
+package com.client;
 
 import java.util.function.Consumer;
 import javafx.animation.AnimationTimer;

@@ -1,4 +1,5 @@
-package com.project;
+package com.client;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,8 +15,7 @@ import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-
-public class ClientFX extends Application {
+public class Main extends Application {
 
     public static UtilsWS wsClient;
 
@@ -37,7 +37,7 @@ public class ClientFX extends Application {
         final int windowHeight = 300;
 
         UtilsViews.parentContainer.setStyle("-fx-font: 14 arial;");
-        UtilsViews.addView(getClass(), "ViewConfig", "/assets/viewConfig.fxml");
+        UtilsViews.addView(getClass(), "ViewConfig", "/assets/viewConfig.fxml"); 
         UtilsViews.addView(getClass(), "ViewWait", "/assets/viewWait.fxml");
         UtilsViews.addView(getClass(), "ViewPlay", "/assets/viewPlay.fxml");
 
@@ -49,7 +49,7 @@ public class ClientFX extends Application {
         
         stage.setScene(scene);
         stage.onCloseRequestProperty(); // Call close method when closing window
-        stage.setTitle("JavaFX - NodeJS");
+        stage.setTitle("JavaFX");
         stage.setMinWidth(windowWidth);
         stage.setMinHeight(windowHeight);
         stage.show();

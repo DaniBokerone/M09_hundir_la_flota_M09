@@ -1,4 +1,4 @@
-package com.project;
+package com.client;
 
 import java.net.URL;
 import java.util.ResourceBundle;

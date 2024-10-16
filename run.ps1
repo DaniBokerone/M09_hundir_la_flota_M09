@@ -52,7 +52,7 @@ Write-Output "Main Class: $mainClass"
 
 if ($action -eq "build") {
     Write-Output "Generating JAR file with all dependencies..."
-    mvn clean package -Dmaven.test.skip=true
+    mvn clean package -DskipTests=true
     Write-Output "JAR generation completed."
     
     # Comprova si el JAR ha estat creat correctament
