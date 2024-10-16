@@ -124,7 +124,7 @@ public class Main extends Application {
                 String txt = String.valueOf(value);
                 if (value == 0) {
                     UtilsViews.setViewAnimating("ViewPlay");
-                    //Descomentar para ver vista GAME y comentar linea superiror
+                    //Descomentar para ver vista GAME y comentar linea superior
                     //UtilsViews.setViewAnimating("ViewGame");
                     txt = "GO";
                 }
@@ -132,13 +132,12 @@ public class Main extends Application {
                 break;
             case "serverMouseMoving":
                 ctrlPlay.setPlayersMousePositions(msgObj.getJSONObject("positions"));
-                //Descomentar para ver vista GAME y comentar linea superiror
+                //Descomentar para ver vista GAME y comentar linea superior
                 //ctrlGame.setPlayersMousePositions(msgObj.getJSONObject("positions"));
                 break;
             case "serverSelectableObjects":
                 ctrlPlay.setSelectableObjects(msgObj.getJSONObject("selectableObjects"));
-                //Descomentar para ver vista GAME y comentar linea superiror
-                //ctrlGame.setSelectableObjects(msgObj.getJSONObject("selectableObjects"));
+                //Comentar linea superior para probar vista Game
                 break;
         }
     }
