@@ -23,6 +23,7 @@ public class Main extends Application {
     public static CtrlConfig ctrlConfig;
     public static CtrlWait ctrlWait;
     public static CtrlPlay ctrlPlay;
+    public static CtrlGame ctrlGame;
 
     public static void main(String[] args) {
 
@@ -33,17 +34,19 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) throws Exception {
 
-        final int windowWidth = 400;
+        final int windowWidth = 800;
         final int windowHeight = 300;
 
         UtilsViews.parentContainer.setStyle("-fx-font: 14 arial;");
         UtilsViews.addView(getClass(), "ViewConfig", "/assets/viewConfig.fxml"); 
         UtilsViews.addView(getClass(), "ViewWait", "/assets/viewWait.fxml");
         UtilsViews.addView(getClass(), "ViewPlay", "/assets/viewPlay.fxml");
+        UtilsViews.addView(getClass(), "ViewGame", "/assets/viewGame.fxml");
 
         ctrlConfig = (CtrlConfig) UtilsViews.getController("ViewConfig");
         ctrlWait = (CtrlWait) UtilsViews.getController("ViewWait");
         ctrlPlay = (CtrlPlay) UtilsViews.getController("ViewPlay");
+        ctrlGame = (CtrlGame) UtilsViews.getController("ViewGame");
 
         Scene scene = new Scene(UtilsViews.parentContainer);
         
@@ -121,15 +124,21 @@ public class Main extends Application {
                 String txt = String.valueOf(value);
                 if (value == 0) {
                     UtilsViews.setViewAnimating("ViewPlay");
+                    //Descomentar para ver vista GAME y comentar linea superiror
+                    //UtilsViews.setViewAnimating("ViewGame");
                     txt = "GO";
                 }
                 ctrlWait.txtTitle.setText(txt);
                 break;
             case "serverMouseMoving":
                 ctrlPlay.setPlayersMousePositions(msgObj.getJSONObject("positions"));
+                //Descomentar para ver vista GAME y comentar linea superiror
+                //ctrlGame.setPlayersMousePositions(msgObj.getJSONObject("positions"));
                 break;
             case "serverSelectableObjects":
                 ctrlPlay.setSelectableObjects(msgObj.getJSONObject("selectableObjects"));
+                //Descomentar para ver vista GAME y comentar linea superiror
+                //ctrlGame.setSelectableObjects(msgObj.getJSONObject("selectableObjects"));
                 break;
         }
     }
