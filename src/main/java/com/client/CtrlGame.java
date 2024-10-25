@@ -22,8 +22,8 @@ public class CtrlGame implements Initializable {
     private Boolean showFPS = false;
 
     private PlayTimer animationTimer;
-    private PlayGrid grid;
-    private PlayGrid enemyGrid;
+    private PlayGrid player1Grid;
+    private PlayGrid player2Grid;
 
     public Map<String, JSONObject> clientMousePositions = new HashMap<>();
     private Boolean mouseDragging = false;
@@ -39,6 +39,12 @@ public class CtrlGame implements Initializable {
     private  int enemyGridStartX = 500;
     private  int enemyGridStartY = 25;
 
+    //PlayerShips
+    private Map<String,int[]> player1Ships = new HashMap<>();
+    private Map<String,int[]> player2Ships = new HashMap<>();
+
+    private boolean[][] player1ClickStatus = new boolean[10][10];
+    private boolean[][] player2ClickStatus = new boolean[10][10];
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -51,11 +57,23 @@ public class CtrlGame implements Initializable {
         UtilsViews.parentContainer.widthProperty().addListener((observable, oldValue, newvalue) -> { onSizeChanged(); });
         
         canvas.setOnMouseMoved(this::setOnMouseMoved);
-        canvas.setOnMousePressed(this::onMousePressed);
+        canvas.setOnMouseClicked(this::onMouseClicked);
 
         // Define grid
-        grid = new PlayGrid(gridStartX, gridStartY, 25, 10, 10);
-        enemyGrid  = new PlayGrid(enemyGridStartX, enemyGridStartY, 25, 10, 10);
+        player1Grid = new PlayGrid(gridStartX, gridStartY, 25, 10, 10);
+        player2Grid  = new PlayGrid(enemyGridStartX, enemyGridStartY, 25, 10, 10);
+
+        // Player 1 ships
+        Map<String, int[]> player1ShipsData = new HashMap<>();
+        player1ShipsData.put("ship1", new int[]{0, 0, 5, 0}); 
+        player1ShipsData.put("ship2", new int[]{2, 2, 3, 1}); 
+        loadPlayerShips("player1", player1ShipsData);
+
+        // Player 2 ships
+        Map<String, int[]> player2ShipsData = new HashMap<>();
+        player2ShipsData.put("ship1", new int[]{1, 1, 4, 0}); 
+        player2ShipsData.put("ship2", new int[]{3, 5, 2, 1}); 
+        loadPlayerShips("player2", player2ShipsData);
 
         // Start run/draw timer bucle
         animationTimer = new PlayTimer(this::run, this::draw, 0);
@@ -89,12 +107,12 @@ public class CtrlGame implements Initializable {
         newPosition.put("x", mouseX);
         newPosition.put("y", mouseY);
 
-        if (isMouseInsideGrid(grid, mouseX, mouseY)) {
-            newPosition.put("col", grid.getCol(mouseX));
-            newPosition.put("row", grid.getRow(mouseY));
-        } else if (isMouseInsideGrid(enemyGrid, mouseX, mouseY)) {
-            newPosition.put("col", enemyGrid.getCol(mouseX));
-            newPosition.put("row", enemyGrid.getRow(mouseY));
+        if (isMouseInsideGrid(player1Grid, mouseX, mouseY)) {
+            newPosition.put("col", player1Grid.getCol(mouseX));
+            newPosition.put("row", player1Grid.getRow(mouseY));
+        } else if (isMouseInsideGrid(player2Grid, mouseX, mouseY)) {
+            newPosition.put("col", player2Grid.getCol(mouseX));
+            newPosition.put("row", player2Grid.getRow(mouseY));
         } else {
             newPosition.put("col", -1);
             newPosition.put("row", -1);
@@ -116,32 +134,80 @@ public class CtrlGame implements Initializable {
         return mouseX >= grid.getCellX(0) && mouseX < grid.getCellX((int) grid.getCols()) &&
                mouseY >= grid.getCellY(0) && mouseY < grid.getCellY((int) grid.getRows());
     }
-    
 
-    private void onMousePressed(MouseEvent event) {
-
+    //TODO - Print colors doesnt work on grid but mouse is being detected correctly
+    private void onMouseClicked(MouseEvent event) {
         double mouseX = event.getX();
         double mouseY = event.getY();
+    
+        PlayGrid targetGrid = null;
+        Map<String, int[]> targetShips = null;
+    
+        if (isMouseInsideGrid(player1Grid, mouseX, mouseY) && "B".equals(Main.clientId)) {
+            targetGrid = player1Grid;
+            targetShips = player1Ships;
+        } else if (isMouseInsideGrid(player2Grid, mouseX, mouseY) && "A".equals(Main.clientId)) {
+            targetGrid = player2Grid;
+            targetShips = player2Ships;
+        } else {
+            return;
+        }
+    
+        int col = targetGrid.getCol(mouseX);
+        int row = targetGrid.getRow(mouseY);
+    
+        System.out.println("Row: " + row + ", Col: " + col);
+        
+        // Only with cells not clicked never
+        if (!isCellClicked(targetGrid, row, col)) {
+            markCellAsClicked(targetGrid, row, col);
+    
+            System.out.println("Drawing at: (" + targetGrid.getCellX(col) + ", " + targetGrid.getCellY(row) + ")");
+            // HIT
+            if (isShipHit(targetShips, row, col)) {
+                System.out.println("Tocado");
 
-        selectedObject = "";
-        boolean mouseDragging = false;
+                gc.setFill(Color.YELLOW);
+                gc.fillRect(targetGrid.getCellX(col), targetGrid.getCellY(row), targetGrid.getCellSize(), targetGrid.getCellSize());
+                gc.strokeRect(targetGrid.getCellX(col), targetGrid.getCellY(row), targetGrid.getCellSize(), targetGrid.getCellSize());
+    
+                // Sunk
+                if (isShipSunk(targetGrid,targetShips, row, col)) {
+                    System.out.println("Hundido");
+                    gc.setFill(Color.RED);
+                    gc.fillRect(targetGrid.getCellX(col), targetGrid.getCellY(row), targetGrid.getCellSize(), targetGrid.getCellSize());
+                    gc.strokeRect(targetGrid.getCellX(col), targetGrid.getCellY(row), targetGrid.getCellSize(), targetGrid.getCellSize());
+                }
+            } else {
+                // Water
+                System.out.println("Fallo");
 
-        for (String objectId : selectableObjects.keySet()) {
-            JSONObject obj = selectableObjects.get(objectId);
-            int objX = obj.getInt("x");
-            int objY = obj.getInt("y");
-            int cols = obj.getInt("cols");
-            int rows = obj.getInt("rows");
-
-            if (isPositionInsideObject(mouseX, mouseY, objX, objY,  cols, rows)) {
-                selectedObject = objectId;
-                mouseDragging = true;
-                mouseOffsetX = event.getX() - objX;
-                mouseOffsetY = event.getY() - objY;
-                break;
+                gc.setFill(Color.BLUE);
+                gc.fillRect(targetGrid.getCellX(col), targetGrid.getCellY(row), targetGrid.getCellSize(), targetGrid.getCellSize());
+                gc.strokeRect(targetGrid.getCellX(col), targetGrid.getCellY(row), targetGrid.getCellSize(), targetGrid.getCellSize());
             }
         }
-    } 
+    }
+        
+    // Check cell as clicked
+    private boolean isCellClicked(PlayGrid grid, int row, int col) {
+        if (grid == player1Grid) {
+            return player1ClickStatus[row][col];
+        } else if (grid == player2Grid) {
+            return player2ClickStatus[row][col];
+        }
+        return false; 
+    }
+    
+    // Mark cell as clicked
+    private void markCellAsClicked(PlayGrid grid, int row, int col) {
+        if (grid == player1Grid) {
+            player1ClickStatus[row][col] = true;
+        } else if (grid == player2Grid) {
+            player2ClickStatus[row][col] = true;
+        }
+    }
+    
 
     public void setPlayersMousePositions(JSONObject positions) {
         clientMousePositions.clear();
@@ -152,7 +218,7 @@ public class CtrlGame implements Initializable {
     }
 
     public Boolean isPositionInsideObject(double positionX, double positionY, int objX, int objY, int cols, int rows) {
-        double cellSize = grid.getCellSize();
+        double cellSize = player1Grid.getCellSize();
         double objectWidth = cols * cellSize;
         double objectHeight = rows * cellSize;
 
@@ -167,43 +233,59 @@ public class CtrlGame implements Initializable {
 
     // Run game (and animations)
     private void run(double fps) {
-
         if (animationTimer.fps < 1) { return; }
-
         // Update objects and animations here
+    }
+
+    public void drawHoverEffect() {
+        JSONObject mousePosition = clientMousePositions.get(Main.clientId);
+        if (mousePosition == null) return;
+
+        int col = mousePosition.getInt("col");
+        int row = mousePosition.getInt("row");
+        double mouseX = mousePosition.getDouble("x");
+        double mouseY = mousePosition.getDouble("y");
+
+        PlayGrid targetGrid;
+        if (isMouseInsideGrid(player1Grid, mouseX, mouseY)) {
+            targetGrid = player1Grid;
+        } else if (isMouseInsideGrid(player2Grid, mouseX, mouseY)) {
+            targetGrid = player2Grid;
+        } else {
+            return;
+        }
+
+        if (row >= 0 && col >= 0 && row < targetGrid.getRows() && col < targetGrid.getCols()) {
+            double x = targetGrid.getCellX(col);
+            double y = targetGrid.getCellY(row);
+            double cellSize = targetGrid.getCellSize();
+
+            gc.setFill(Color.color(0.5, 0.5, 0.5, 0.3));
+            gc.fillRect(x, y, cellSize, cellSize);
+
+            gc.setStroke(Color.BLACK);
+            gc.strokeRect(x, y, cellSize, cellSize);
+        }
     }
 
     // Draw game to canvas
     public void draw() {
-
         // Clean drawing area
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
-         // Draw colored 'over' cells
-        for (String clientId : clientMousePositions.keySet()) {
-            JSONObject position = clientMousePositions.get(clientId);
+        // Draw grids
+        drawGrid(player1Grid, gridStartX, gridStartY);
+        drawGrid(player2Grid, enemyGridStartX, enemyGridStartY);
 
-            int col = position.getInt("col");
-            int row = position.getInt("row");
-
-            // Comprovar si està dins dels límits de la graella
-            if (row >= 0 && col >= 0) {
-                if ("A".equals(clientId)) {
-                    gc.setFill(Color.LIGHTBLUE); 
-                } else {
-                    gc.setFill(Color.LIGHTGREEN); 
-                }
-                // Emplenar la casella amb el color clar
-                PlayGrid targetGrid = isMouseInsideGrid(grid, position.getInt("x"), position.getInt("y")) ? grid : enemyGrid;
-                gc.fillRect(targetGrid.getCellX(col), targetGrid.getCellY(row), targetGrid.getCellSize(), targetGrid.getCellSize());
-            }
+         // Draw Ships
+         if ("A".equals(Main.clientId)) {
+           drawPlayerShips(player1Grid, player1Ships);
+        } else {
+            drawPlayerShips(player2Grid, player2Ships);
         }
-
-        // Draw enemy Grid Hover
-        drawGrid(grid, gridStartX, gridStartY);
-
-        // Draw enemy Grid Hover
-        drawGrid(enemyGrid, enemyGridStartX, enemyGridStartY);
+        
+        //Hover
+        drawHoverEffect();
 
         // Draw selectable objects
         for (String objectId : selectableObjects.keySet()) {
@@ -217,35 +299,124 @@ public class CtrlGame implements Initializable {
             if ("A".equals(clientId)) {
                 gc.setFill(Color.BLUE);
             } else {
-                gc.setFill(Color.GREEN); 
+                gc.setFill(Color.GREEN);
             }
             gc.fillOval(position.getInt("x") - 5, position.getInt("y") - 5, 10, 10);
         }
 
         // Draw FPS if needed
-        if (showFPS) { 
-            animationTimer.drawFPS(gc); 
-        }   
+        if (showFPS) {
+            animationTimer.drawFPS(gc);
+        }
     }
 
     public void drawGrid(PlayGrid grid, double startX, double startY) {
         gc.setStroke(Color.BLACK);
+
+        String[] letters = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
 
         for (int row = 0; row < grid.getRows(); row++) {
             for (int col = 0; col < grid.getCols(); col++) {
                 double cellSize = grid.getCellSize();
                 double x = startX + col * cellSize;
                 double y = startY + row * cellSize;
+
                 gc.strokeRect(x, y, cellSize, cellSize);
+                
+                if (row == 0 && col < letters.length) {
+                    gc.setFill(Color.BLACK);
+                    gc.fillText(letters[col], x + cellSize / 2 - 5, startY - 5);
+                }
+
+                if (col == 0) {
+                    gc.setFill(Color.BLACK); 
+                    gc.fillText(String.valueOf(row + 1), startX - 15, y + cellSize / 2 + 5);
+                }
             }
         }
     }
 
+    public void drawPlayerShips(PlayGrid grid, Map<String, int[]> ships) {
+        gc.setFill(Color.GRAY);
+
+        for (String shipId : ships.keySet()) {
+            int[] shipInfo = ships.get(shipId);
+            int startRow = shipInfo[0];
+            int startCol = shipInfo[1];
+            int length = shipInfo[2];
+            int orientation = shipInfo[3];
+
+            for (int i = 0; i < length; i++) {
+                int row = startRow + (orientation == 1 ? i : 0);
+                int col = startCol + (orientation == 0 ? i : 0);
+
+                double x = grid.getCellX(col);
+                double y = grid.getCellY(row);
+
+                gc.fillRect(x, y, grid.getCellSize(), grid.getCellSize());
+                gc.strokeRect(x, y, grid.getCellSize(), grid.getCellSize());
+            }
+        }
+    }
+
+    public void loadPlayerShips(String playerId, Map<String, int[]> ships) {
+        if (playerId.equals("player1")) {
+            player1Ships.clear();
+            player1Ships.putAll(ships); 
+        } else if (playerId.equals("player2")) {
+            player2Ships.clear();
+            player2Ships.putAll(ships); 
+        }
+    }
+
+    private boolean isShipHit(Map<String, int[]> ships, int row, int col) {
+        for (int[] ship : ships.values()) {
+            int startRow = ship[0];
+            int startCol = ship[1];
+            int length = ship[2];
+            int orientation = ship[3];
+    
+            for (int i = 0; i < length; i++) {
+                int shipRow = startRow + (orientation == 1 ? i : 0);
+                int shipCol = startCol + (orientation == 0 ? i : 0);
+    
+                if (shipRow == row && shipCol == col) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isShipSunk(PlayGrid targetGrid,Map<String, int[]> ships, int hitRow, int hitCol) {
+        for (int[] ship : ships.values()) {
+            int startRow = ship[0];
+            int startCol = ship[1];
+            int length = ship[2];
+            int orientation = ship[3];
+            boolean isSunk = true;
+    
+            for (int i = 0; i < length; i++) {
+                int row = startRow + (orientation == 1 ? i : 0);
+                int col = startCol + (orientation == 0 ? i : 0);
+    
+                if (!isCellClicked(targetGrid,row, col)) {
+                    isSunk = false;
+                    break;
+                }
+            }
+    
+            if (isSunk && (startRow <= hitRow && hitRow < startRow + length) && (startCol <= hitCol && hitCol < startCol + length)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void drawSelectableObject(String objectId, JSONObject obj) {
-        PlayGrid targetGrid = isMouseInsideGrid(grid, obj.getInt("x"), obj.getInt("y")) ? grid : enemyGrid;
-        
-        //Added default Red
-        gc.setFill(Color.RED); 
+        PlayGrid targetGrid = isMouseInsideGrid(player1Grid, obj.getInt("x"), obj.getInt("y")) ? player1Grid : player2Grid;
+
+        gc.setFill(Color.RED);
         gc.fillRect(targetGrid.getCellX(obj.getInt("x")), targetGrid.getCellY(obj.getInt("y")), obj.getInt("cols") * targetGrid.getCellSize(), obj.getInt("rows") * targetGrid.getCellSize());
     }
 }
