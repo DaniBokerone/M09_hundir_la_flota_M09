@@ -7,14 +7,23 @@ import java.util.ResourceBundle;
 
 import org.json.JSONObject;
 
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 
 public class CtrlPlay implements Initializable {
+
+    @FXML
+    private Button ready;
+
+    @FXML
+    private Label rivalReady;
 
     @FXML
     private Canvas canvas;
@@ -23,25 +32,31 @@ public class CtrlPlay implements Initializable {
 
     private PlayTimer animationTimer;
     private PlayGrid grid;
-
-    public Map<String, JSONObject> clientMousePositions = new HashMap<>();
+    
+    private Boolean playerReady = false;
+    private Boolean enemyReady = false;
     private Boolean mouseDragging = false;
     private double mouseOffsetX, mouseOffsetY;
 
-    public static Map<String, JSONObject> selectableObjects = new HashMap<>();
+    private Map<String, JSONObject> player1Ships = new HashMap<>();
+    private Map<String, JSONObject> player2Ships = new HashMap<>();
     private String selectedObject = "";
+
+    private Map<String, int[]> player1PlacedShips = new HashMap<>();
+    private Map<String, int[]> player2PlacedShips = new HashMap<>();
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
 
         // Get drawing context
         this.gc = canvas.getGraphicsContext2D();
+        ready.setDisable(true);
+        rivalReady.setVisible(false);
 
         // Set listeners
         UtilsViews.parentContainer.heightProperty().addListener((observable, oldValue, newvalue) -> { onSizeChanged(); });
         UtilsViews.parentContainer.widthProperty().addListener((observable, oldValue, newvalue) -> { onSizeChanged(); });
         
-        canvas.setOnMouseMoved(this::setOnMouseMoved);
         canvas.setOnMousePressed(this::onMousePressed);
         canvas.setOnMouseDragged(this::onMouseDragged);
         canvas.setOnMouseReleased(this::onMouseReleased);
@@ -73,95 +88,86 @@ public class CtrlPlay implements Initializable {
         animationTimer.stop();
     }
 
-    private void setOnMouseMoved(MouseEvent event) {
-        double mouseX = event.getX();
-        double mouseY = event.getY();
-
-        JSONObject newPosition = new JSONObject();
-        newPosition.put("x", mouseX);
-        newPosition.put("y", mouseY);
-        if (grid.isPositionInsideGrid(mouseX, mouseY)) {                
-            newPosition.put("col", grid.getCol(mouseX));
-            newPosition.put("row", grid.getRow(mouseY));
-        } else {
-            newPosition.put("col", -1);
-            newPosition.put("row", -1);
-        }
-        clientMousePositions.put(Main.clientId, newPosition);
-
-        JSONObject msgObj = clientMousePositions.get(Main.clientId);
-        msgObj.put("type", "clientMouseMoving");
-        msgObj.put("clientId", Main.clientId);
-    
-        if (Main.wsClient != null) {
-            Main.wsClient.safeSend(msgObj.toString());
-        }
-    }
-
     private void onMousePressed(MouseEvent event) {
+        if (!playerReady) {
+            double mouseX = event.getX();
+            double mouseY = event.getY();
 
-        double mouseX = event.getX();
-        double mouseY = event.getY();
+            selectedObject = "";
+            mouseDragging = false;
 
-        selectedObject = "";
-        mouseDragging = false;
+            for (String objectId : (Main.isPlayer1 ? player1Ships : player2Ships).keySet()) {
+                JSONObject obj = (Main.isPlayer1 ? player1Ships : player2Ships).get(objectId);
+                int objX = obj.getInt("x");
+                int objY = obj.getInt("y");
+                int cols = obj.getInt("cols");
+                int rows = obj.getInt("rows");
 
-        for (String objectId : selectableObjects.keySet()) {
-            JSONObject obj = selectableObjects.get(objectId);
-            int objX = obj.getInt("x");
-            int objY = obj.getInt("y");
-            int cols = obj.getInt("cols");
-            int rows = obj.getInt("rows");
-
-            if (isPositionInsideObject(mouseX, mouseY, objX, objY,  cols, rows)) {
-                selectedObject = objectId;
-                mouseDragging = true;
-                mouseOffsetX = event.getX() - objX;
-                mouseOffsetY = event.getY() - objY;
-                break;
+                if (isPositionInsideObject(mouseX, mouseY, objX, objY,  cols, rows)) {
+                    selectedObject = objectId;
+                    mouseDragging = true;
+                    mouseOffsetX = event.getX() - objX;
+                    mouseOffsetY = event.getY() - objY;
+                    break;
+                }
             }
         }
     }
 
     private void onMouseDragged(MouseEvent event) {
         if (mouseDragging) {
-            JSONObject obj = selectableObjects.get(selectedObject);
+            JSONObject obj = (Main.isPlayer1 ? player1Ships : player2Ships).get(selectedObject);
             double objX = event.getX() - mouseOffsetX;
             double objY = event.getY() - mouseOffsetY;
+            double objXend = (event.getX() + (grid.getCellSize() * (obj.getInt("cols") - 1))) - mouseOffsetX;
+            double objYend = (event.getY() + (grid.getCellSize() * (obj.getInt("rows") - 1))) - mouseOffsetY;
             
             obj.put("x", objX);
             obj.put("y", objY);
             obj.put("col", grid.getCol(objX));
             obj.put("row", grid.getRow(objY));
-
-            JSONObject msgObj = selectableObjects.get(selectedObject);
-            msgObj.put("type", "clientSelectableObjectMoving");
-            msgObj.put("objectId", obj.getString("objectId"));
-        
-            if (Main.wsClient != null) {
-                Main.wsClient.safeSend(msgObj.toString());
-            }
+            obj.put("colend", grid.getCol(objXend));
+            obj.put("rowend", grid.getRow(objYend));
         }
-        setOnMouseMoved(event);
     }
 
     private void onMouseReleased(MouseEvent event) {
         if (selectedObject != "") {
-            JSONObject obj = selectableObjects.get(selectedObject);
+            JSONObject obj = (Main.isPlayer1 ? player1Ships : player2Ships).get(selectedObject);
             int objCol = obj.getInt("col");
             int objRow = obj.getInt("row");
+            int objColEnd = obj.getInt("colend");
+            int objRowEnd = obj.getInt("rowend");
 
-            if (objCol != -1 && objRow != -1) {
-                obj.put("x", grid.getCellX(objCol));
-                obj.put("y", grid.getCellY(objRow));
+            if ((Main.isPlayer1 ? player1PlacedShips : player2PlacedShips).containsKey(obj.getString("objectId"))) {
+                (Main.isPlayer1 ? player1PlacedShips : player2PlacedShips).remove(obj.getString("objectId"));
+                ready.setDisable(true);
             }
 
-            JSONObject msgObj = selectableObjects.get(selectedObject);
-            msgObj.put("type", "clientSelectableObjectMoving");
-            msgObj.put("objectId", obj.getString("objectId"));
-        
-            if (Main.wsClient != null) {
-                Main.wsClient.safeSend(msgObj.toString());
+            if (objCol != -1 && objRow != -1 && objColEnd != -1 && objRowEnd != -1) {
+                if ((Main.isPlayer1 ? player1PlacedShips : player2PlacedShips).isEmpty()) {
+                    obj.put("x", grid.getCellX(objCol));
+                    obj.put("y", grid.getCellY(objRow));
+                    (Main.isPlayer1 ? player1PlacedShips : player2PlacedShips).put(obj.getString("objectId"), new int[]{obj.getInt("col"), obj.getInt("row"), obj.getInt("colend"), obj.getInt("rowend")});
+                } else {
+                    if (checkOverlapping(obj)) {
+                        obj.put("x", obj.getInt("ogx"));
+                        obj.put("y", obj.getInt("ogy"));
+                    } else {
+                        obj.put("x", grid.getCellX(objCol));
+                        obj.put("y", grid.getCellY(objRow));
+                        (Main.isPlayer1 ? player1PlacedShips : player2PlacedShips).put(obj.getString("objectId"), new int[]{obj.getInt("col"), obj.getInt("row"), obj.getInt("colend"), obj.getInt("rowend")});
+                    }
+                }
+
+            } else {
+                obj.put("x", obj.getInt("ogx"));
+                obj.put("y", obj.getInt("ogy"));
+            }
+
+            System.out.println((Main.isPlayer1 ? player1PlacedShips : player2PlacedShips));
+            if (Main.isPlayer1 ? player1PlacedShips.size() == 6 : player2PlacedShips.size() == 6) {
+                ready.setDisable(false);
             }
 
             mouseDragging = false;
@@ -169,19 +175,66 @@ public class CtrlPlay implements Initializable {
         }
     }
 
-    public void setPlayersMousePositions(JSONObject positions) {
-        clientMousePositions.clear();
-        for (String clientId : positions.keySet()) {
-            JSONObject positionObject = positions.getJSONObject(clientId);
-            clientMousePositions.put(clientId, positionObject);
+    public boolean checkOverlapping(JSONObject placingShip) {
+        if (placingShip.getInt("colend") - placingShip.getInt("col") > placingShip.getInt("rowend") - placingShip.getInt("row")) {
+            for (Map.Entry<String, int[]> placedShip : (Main.isPlayer1 ? player1PlacedShips : player2PlacedShips).entrySet()) {
+                if (placedShip.getValue()[2] - placedShip.getValue()[0] > placedShip.getValue()[3] - placedShip.getValue()[1]) {
+                    for (int i = 0; i < placedShip.getValue()[2] - placedShip.getValue()[0] + 1; i++) {
+                        for (int j = 0; j < placingShip.getInt("colend") - placingShip.getInt("col") + 1; j++) {
+                            if (placedShip.getValue()[0] + i == placingShip.getInt("col") + j && placedShip.getValue()[1] == placingShip.getInt("row")) {
+                                return true;
+                            }
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < placedShip.getValue()[3] - placedShip.getValue()[1] + 1; i++) {
+                        for (int j = 0; j < placingShip.getInt("colend") - placingShip.getInt("col") + 1; j++) {
+                            if (placedShip.getValue()[0] == placingShip.getInt("col") + j && placedShip.getValue()[1] + i == placingShip.getInt("row")) {
+                                return true;
+                            } 
+                        }
+                    }
+                }
+            }
+        } else {
+            for (Map.Entry<String, int[]> placedShip : (Main.isPlayer1 ? player1PlacedShips : player2PlacedShips).entrySet()) {
+                if (placedShip.getValue()[2] - placedShip.getValue()[0] > placedShip.getValue()[3] - placedShip.getValue()[1]) {
+                    for (int i = 0; i < placedShip.getValue()[2] - placedShip.getValue()[0] + 1; i++) {
+                        for (int j = 0; j < placingShip.getInt("rowend") - placingShip.getInt("row") + 1; j++) {
+                            if (placedShip.getValue()[0] + i == placingShip.getInt("col") && placedShip.getValue()[1] == placingShip.getInt("row") + j) {
+                                return true;
+                            }
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < placedShip.getValue()[3] - placedShip.getValue()[1] + 1; i++) {
+                        for (int j = 0; j < placingShip.getInt("rowend") - placingShip.getInt("row") + 1; j++) {
+                            if (placedShip.getValue()[0] == placingShip.getInt("col") && placedShip.getValue()[1] + i == placingShip.getInt("row") + j) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
         }
+        
+        
+        return false;
     }
 
-    public void setSelectableObjects(JSONObject objects) {
-        selectableObjects.clear();
+
+
+    public void setSelectableObjects(JSONObject objects, String isPlayer) {
+        Map<String, JSONObject> targetShips;
+        if (isPlayer.equals("player1")) {
+            targetShips = player1Ships;
+        } else {
+            targetShips = player2Ships;
+        }
+        targetShips.clear();
         for (String objectId : objects.keySet()) {
             JSONObject positionObject = objects.getJSONObject(objectId);
-            selectableObjects.put(objectId, positionObject);
+            targetShips.put(objectId, positionObject);
         }
     }
 
@@ -199,6 +252,31 @@ public class CtrlPlay implements Initializable {
                positionY >= objectTopY && positionY < objectBottomY;
     }
 
+    @FXML
+    private void onReady(ActionEvent event) {
+        playerReady = true;
+        ready.setText("Waiting for other player...");
+        ready.setStyle("-fx-background-color: #EBEBE4");
+        
+        JSONObject msgObj = new JSONObject();
+        msgObj.put("type", "playerReady");
+        msgObj.put("player1", Main.isPlayer1);
+        msgObj.put("placedShips", Main.isPlayer1 ? player1PlacedShips : player2PlacedShips);
+        if (Main.wsClient != null) {
+            Main.wsClient.safeSend(msgObj.toString());
+        }
+    }
+
+    public void onRivalReady() {
+        rivalReady.setVisible(true);
+        enemyReady = true;
+    }
+
+    public void gameReady() {
+        rivalReady.setVisible(false);
+        ready.setText("Game starting...");
+    }
+
     // Run game (and animations)
     private void run(double fps) {
 
@@ -209,52 +287,18 @@ public class CtrlPlay implements Initializable {
 
     // Draw game to canvas
     public void draw() {
-
-        // Clean drawing area
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-
-        // Draw colored 'over' cells
-
-        for (String clientId : clientMousePositions.keySet()) {
-            JSONObject position = clientMousePositions.get(clientId);
-
-            int col = position.getInt("col");
-            int row = position.getInt("row");
-
-            // Comprovar si està dins dels límits de la graella
-            if (row >= 0 && col >= 0) {
-                if ("A".equals(clientId)) {
-                    gc.setFill(Color.LIGHTBLUE); 
-                } else {
-                    gc.setFill(Color.LIGHTGREEN); 
-                }
-                // Emplenar la casella amb el color clar
-                gc.fillRect(grid.getCellX(col), grid.getCellY(row), grid.getCellSize(), grid.getCellSize());
-            }
-        }
-
-        // Draw grid
         drawGrid();
-
-        // Draw selectable objects
-        for (String objectId : selectableObjects.keySet()) {
-            JSONObject selectableObject = selectableObjects.get(objectId);
+    
+        Map<String, JSONObject> currentPlayerShips = Main.isPlayer1 ? player1Ships : player2Ships;
+        for (String objectId : currentPlayerShips.keySet()) {
+            JSONObject selectableObject = currentPlayerShips.get(objectId);
             drawSelectableObject(objectId, selectableObject);
         }
-
-        // Draw mouse circles
-        for (String clientId : clientMousePositions.keySet()) {
-            JSONObject position = clientMousePositions.get(clientId);
-            if ("A".equals(clientId)) {
-                gc.setFill(Color.BLUE);
-            } else {
-                gc.setFill(Color.GREEN); 
-            }
-            gc.fillOval(position.getInt("x") - 5, position.getInt("y") - 5, 10, 10);
+    
+        if (showFPS) {
+            animationTimer.drawFPS(gc);
         }
-
-        // Draw FPS if needed
-        if (showFPS) { animationTimer.drawFPS(gc); }   
     }
 
     public void drawGrid() {
@@ -280,7 +324,7 @@ public class CtrlPlay implements Initializable {
 
         // Seleccionar un color basat en l'objectId
         Color color;
-        switch (objectId.toLowerCase()) {
+        switch (obj.getString("color")) {
             case "red":
                 color = Color.RED;
                 break;
@@ -305,9 +349,5 @@ public class CtrlPlay implements Initializable {
         // Dibuixar el contorn
         gc.setStroke(Color.BLACK);
         gc.strokeRect(x, y, width, height);
-
-        // Opcionalment, afegir text (per exemple, l'objectId)
-        gc.setFill(Color.BLACK);
-        gc.fillText(objectId, x + 5, y + 15);
     }
 }

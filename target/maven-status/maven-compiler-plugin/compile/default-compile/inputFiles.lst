@@ -1,9 +1,10 @@
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\UtilsViews.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\PlayTimer.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\CtrlWait.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\server\Main.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\Main.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\CtrlConfig.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\CtrlPlay.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\UtilsWS.java
-C:\Users\danib\M06_projectes\DAM-M06-UF01-PR1.1-24-25-Practica-Punt-Partida\DAM-ServeisProcessos\03 Proxmox\Exemple\src\main\java\com\client\PlayGrid.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\Main.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\PlayGrid.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\CtrlWait.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\server\Main.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\CtrlGame.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\UtilsWS.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\UtilsViews.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\CtrlConfig.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\CtrlPlay.java
+D:\AMS2V2\M09\UF1\M09_undir-_la_flota\src\main\java\com\client\PlayTimer.java
