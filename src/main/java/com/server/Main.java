@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Arrays;
+import java.util.UUID;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -30,10 +31,15 @@ public class Main extends WebSocketServer {
     private static final List<String> PLAYER_NAMES = Arrays.asList("A", "B");
 
     private Map<WebSocket, String> clients;
+    private int readyPlayers = 0;
     private List<String> availableNames;
     private Map<String, JSONObject> clientMousePositions = new HashMap<>();
 
-    private static Map<String, JSONObject> selectableObjects = new HashMap<>();
+    private static Map<String, JSONObject> selectableObjectsPlayer1 = new HashMap<>();
+    private static Map<String, JSONObject> selectableObjectsPlayer2 = new HashMap<>();
+
+    private Map<String, int[]> player1PlacedShips = new HashMap<>();
+    private Map<String, int[]> player2PlacedShips = new HashMap<>();
 
     public Main(InetSocketAddress address) {
         super(address);
@@ -48,33 +54,45 @@ public class Main extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        String clientName = getNextAvailableName();
-        clients.put(conn, clientName);
-        System.out.println("WebSocket client connected: " + clientName);
-        sendClientsList();
-        sendCowntdown();
-    }
-
-    private String getNextAvailableName() {
-        if (availableNames.isEmpty()) {
-            resetAvailableNames();
+        String sessionId = handshake.getFieldValue("Session-ID");
+        if (sessionId != null && clients.containsValue(sessionId)) {
+            System.out.println("Client reconnected with existing Session ID: " + sessionId);
+        } else {
+            sessionId = UUID.randomUUID().toString();
+            System.out.println("New WebSocket client connected with Session ID: " + sessionId);
         }
-        return availableNames.remove(0);
+        
+        clients.put(conn, sessionId);
+    
+        boolean isPlayer1 = (clients.size() == 1);  
+    
+        JSONObject playerInfo = new JSONObject();
+        playerInfo.put("type", "playerInfo");
+        playerInfo.put("clientId", sessionId);
+        playerInfo.put("isPlayer1", isPlayer1);
+    
+        try {
+            conn.send(playerInfo.toString());
+        } catch (WebsocketNotConnectedException e) {
+            System.out.println("Failed to send playerInfo to client: " + sessionId);
+        }
+    
+        sendClientsList();
+        sendCountdown();
     }
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        String clientName = clients.get(conn);
+        String sessionId = clients.get(conn);
         clients.remove(conn);
-        availableNames.add(clientName);
-        System.out.println("WebSocket client disconnected: " + clientName);
+        availableNames.add(sessionId);
+        System.out.println("WebSocket client with Session ID " + sessionId + " disconnected. Reason: " + reason);
         sendClientsList();
     }
 
     @Override
     public void onMessage(WebSocket conn, String message) {
         JSONObject obj = new JSONObject(message);
-    
         
         if (obj.has("type")) {
             String type = obj.getString("type");
@@ -91,28 +109,69 @@ public class Main extends WebSocketServer {
                     rst0.put("positions", clientMousePositions);
         
                     // Envia el missatge a tots els clients connectats
-                    broadcastMessage(rst0.toString(), null);
+                    broadcastMessage(rst0.toString(), null, null);
                     break;
-                case "clientSelectableObjectMoving":
-                    String objectId = obj.getString("objectId");
-                    selectableObjects.put(objectId, obj);
+                case "playerReady":
+                    JSONObject rivalReady = new JSONObject();
+                    rivalReady.put("type", "rivalReady");
 
-                    sendServerSelectableObjects();
-                    break;
+                    boolean player1 = obj.getBoolean("player1");
+                    if (player1) {
+                        rivalReady.put("player1ready", true);
+                        setPlacedShips(obj.getJSONObject("placedShips"), "player1");
+                    } else {
+                        rivalReady.put("player2ready", true);
+                        setPlacedShips(obj.getJSONObject("placedShips"), "player2");
+                    }
+                    readyPlayers += 1;
+                    sendGameReady();
+                    broadcastMessage(rivalReady.toString(), null, null);
+                    
+
+                    
+                    
+
             }
         }
     }
    
-    private void broadcastMessage(String message, WebSocket sender) {
+    private void setPlacedShips(JSONObject objects, String string) {
+        Map<String, int[]> targetShips;
+        if (string.equals("player1")) {
+            targetShips = player1PlacedShips;
+        } else {
+            targetShips = player2PlacedShips;
+        }
+        targetShips.clear();
+
+
+        for (String objectId : objects.keySet()) {
+            JSONArray positionArray = objects.getJSONArray(objectId);  
+            int[] positionObject = new int[4];  
+            positionObject[0] = positionArray.getInt(1);
+            positionObject[1] = positionArray.getInt(0);
+            if (positionArray.getInt(2) > positionArray.getInt(0)) {
+                positionObject[2] = positionArray.getInt(2) - positionArray.getInt(0) + 1;
+                positionObject[3] = 0;
+            } else {
+                positionObject[2] = positionArray.getInt(3) - positionArray.getInt(1) + 1;
+                positionObject[3] = 1;
+            }
+            targetShips.put(objectId, positionObject); 
+        }
+    }
+
+    private void broadcastMessage(String message, WebSocket sender, List<String> targetClients) {
         for (Map.Entry<WebSocket, String> entry : clients.entrySet()) {
             WebSocket conn = entry.getKey();
-            if (conn != sender) {
+            String sessionId = entry.getValue();
+            if (conn != sender && (targetClients == null || targetClients.contains(sessionId))) {
                 try {
                     conn.send(message);
                 } catch (WebsocketNotConnectedException e) {
-                    System.out.println("Client " + entry.getValue() + " not connected.");
+                    System.out.println("Client with Session ID " + sessionId + " not connected.");
                     clients.remove(conn);
-                    availableNames.add(entry.getValue());
+                    availableNames.add(sessionId);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -150,11 +209,11 @@ public class Main extends WebSocketServer {
         }
     }
 
-    private void notifySenderClientUnavailable(WebSocket sender, String destination) {
+    private void notifySenderClientUnavailable(WebSocket sender, String sessionId) {
         JSONObject rst = new JSONObject();
         rst.put("type", "error");
-        rst.put("message", "Client " + destination + " not available.");
-
+        rst.put("message", "Client with Session ID " + sessionId + " is not available.");
+    
         try {
             sender.send(rst.toString());
         } catch (Exception e) {
@@ -191,14 +250,14 @@ public class Main extends WebSocketServer {
         }
     }
 
-    public void sendCowntdown() {
+    public void sendCountdown() {
         int requiredNumberOfClients = 2;
         if (clients.size() == requiredNumberOfClients) {
             for (int i = 5; i >= 0; i--) {
                 JSONObject msg = new JSONObject();
                 msg.put("type", "countdown");
                 msg.put("value", i);
-                broadcastMessage(msg.toString(), null);
+                broadcastMessage(msg.toString(), null, null);
                 if (i == 0) {
                     sendServerSelectableObjects();
                 } else {
@@ -212,15 +271,25 @@ public class Main extends WebSocketServer {
         }
     }
 
-    public void sendServerSelectableObjects() {
+    public void sendGameReady() {
+        if (readyPlayers >= 2) {
+            JSONObject gameReady = new JSONObject();
+            gameReady.put("type", "gameReady");
+            gameReady.put("player1ships", player1PlacedShips);
+            gameReady.put("player2ships", player2PlacedShips);
+            broadcastMessage(gameReady.toString(), null, null);
+        }
+    }
 
+    public void sendServerSelectableObjects() {
         // Prepara el missatge de tipus 'serverObjects' amb les posicions de tots els clients
         JSONObject rst1 = new JSONObject();
         rst1.put("type", "serverSelectableObjects");
-        rst1.put("selectableObjects", selectableObjects);
+        rst1.put("selectableObjectsPlayer1", selectableObjectsPlayer1);
+        rst1.put("selectableObjectsPlayer2", selectableObjectsPlayer2);
 
         // Envia el missatge a tots els clients connectats
-        broadcastMessage(rst1.toString(), null);
+        broadcastMessage(rst1.toString(), null, null);
     }
    
     @Override
@@ -258,6 +327,18 @@ public class Main extends WebSocketServer {
         return resultat.toString().trim();
     }
 
+    public static JSONObject shipMaker(JSONObject obj, String objectId, int ogx, int ogy, int x, int y, int cols, int rows, String color) {
+        obj.put("objectId", objectId);
+        obj.put("ogx", ogx);
+        obj.put("ogy", ogy);
+        obj.put("x", x);
+        obj.put("y", y);
+        obj.put("cols", cols);
+        obj.put("rows", rows);
+        obj.put("color", color);
+        return obj;
+    }
+
     public static void main(String[] args) {
 
         String systemName = askSystemName();
@@ -269,24 +350,42 @@ public class Main extends WebSocketServer {
         LineReader reader = LineReaderBuilder.builder().build();
         System.out.println("Server running. Type 'exit' to gracefully stop it.");
 
-        // Add objects
-        String name0 = "O0";
-        JSONObject obj0 = new JSONObject();
-        obj0.put("objectId", name0);
-        obj0.put("x", 300);
-        obj0.put("y", 50);
-        obj0.put("cols", 4);
-        obj0.put("rows", 1);
-        selectableObjects.put(name0, obj0);
+        JSONObject player1Submarine1 = new JSONObject();
+        selectableObjectsPlayer1.put("Submarine1", shipMaker(player1Submarine1, "Submarine1", 300, 25, 300, 25, 2, 1, "yellow"));
 
-        String name1 = "O1";
-        JSONObject obj1 = new JSONObject();
-        obj1.put("objectId", name1);
-        obj1.put("x", 300);
-        obj1.put("y", 100);
-        obj1.put("cols", 1);
-        obj1.put("rows", 3);
-        selectableObjects.put(name1, obj1);
+        JSONObject player1Submarine2 = new JSONObject();
+        selectableObjectsPlayer1.put("Submarine2", shipMaker(player1Submarine2, "Submarine2", 400, 175, 300, 175, 1, 2, "yellow"));
+
+        JSONObject player1Cruiser1 = new JSONObject();
+        selectableObjectsPlayer1.put("Cruiser1", shipMaker(player1Cruiser1, "Cruiser1", 300, 75, 300, 75, 3, 1, "green"));
+
+        JSONObject player1Cruiser2 = new JSONObject();
+        selectableObjectsPlayer1.put("Cruiser2", shipMaker(player1Cruiser2, "Cruiser2", 350, 175, 350, 175, 1, 3, "green"));
+
+        JSONObject player1Battleship = new JSONObject();
+        selectableObjectsPlayer1.put("Battleship", shipMaker(player1Battleship, "Battleship", 300, 175, 400, 175, 1, 4, "blue"));
+
+        JSONObject player1Carrier = new JSONObject();
+        selectableObjectsPlayer1.put("Carrier", shipMaker(player1Carrier, "Carrier", 300, 125, 300, 125, 5, 1, "red"));
+
+        JSONObject player2Submarine1 = new JSONObject();
+        selectableObjectsPlayer2.put("Submarine1", shipMaker(player2Submarine1, "Submarine1", 300, 25, 300, 25, 2, 1, "yellow"));
+
+        JSONObject player2Submarine2 = new JSONObject();
+        selectableObjectsPlayer2.put("Submarine2", shipMaker(player2Submarine2, "Submarine2",400, 175, 300, 175, 1, 2, "yellow"));
+
+        JSONObject player2Cruiser1 = new JSONObject();
+        selectableObjectsPlayer2.put("Cruiser1", shipMaker(player2Cruiser1, "Cruiser1",300, 75, 300, 75, 3, 1, "green"));
+
+        JSONObject player2Cruiser2 = new JSONObject();
+        selectableObjectsPlayer2.put("Cruiser2", shipMaker(player2Cruiser2, "Cruiser2", 350, 175, 350, 175, 1, 3, "green"));
+
+        JSONObject player2Battleship = new JSONObject();
+        selectableObjectsPlayer2.put("Battleship", shipMaker(player2Battleship, "Battleship", 300, 175, 400, 175, 1, 4, "blue"));
+
+        JSONObject player2Carrier = new JSONObject();
+        selectableObjectsPlayer2.put("Carrier", shipMaker(player2Carrier, "Carrier", 300, 125, 300, 125, 5, 1, "red"));
+
 
         try {
             while (true) {

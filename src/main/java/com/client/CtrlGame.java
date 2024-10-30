@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javafx.animation.KeyFrame;
@@ -88,19 +89,6 @@ public class CtrlGame implements Initializable {
         player1Grid = new PlayGrid(gridStartX, gridStartY, 25, 10, 10);
         player2Grid  = new PlayGrid(enemyGridStartX, enemyGridStartY, 25, 10, 10);
 
-        //TODO - We should get this from the server
-        // Player 1 ships
-        Map<String, int[]> player1ShipsData = new HashMap<>();
-        player1ShipsData.put("ship1", new int[]{0, 0, 5, 0}); 
-        player1ShipsData.put("ship2", new int[]{2, 2, 3, 1}); 
-        loadPlayerShips("player1", player1ShipsData);
-
-        // Player 2 ships
-        Map<String, int[]> player2ShipsData = new HashMap<>();
-        player2ShipsData.put("ship1", new int[]{1, 1, 4, 0}); 
-        player2ShipsData.put("ship2", new int[]{3, 5, 2, 1}); 
-        loadPlayerShips("player2", player2ShipsData);
-
         // Start run/draw timer bucle
         animationTimer = new PlayTimer(this::run, this::draw, 0);
         start();
@@ -118,6 +106,25 @@ public class CtrlGame implements Initializable {
 
         startTurnTimer();
 
+    }
+
+    public void setupShips(JSONObject objects, String player) {
+        Map<String, int[]> targetShips;
+
+        if (player.equals("player1")) {
+            targetShips = player1Ships;
+        } else {
+            targetShips = player2Ships;
+        }
+        targetShips.clear();
+        for (String objectId : objects.keySet()) {
+            JSONArray positionArray = objects.getJSONArray(objectId);  
+            int[] positionObject = new int[positionArray.length()];  
+            for (int i = 0; i < positionArray.length(); i++) {
+                positionObject[i] = positionArray.getInt(i);  
+            }
+            targetShips.put(objectId, positionObject); 
+        }
     }
 
     // When window changes its size
@@ -138,6 +145,8 @@ public class CtrlGame implements Initializable {
     public void stop() {
         animationTimer.stop();
     }
+
+    
 
     /*-------------------------- Control Mouse actions --------------------------*/
 
@@ -181,17 +190,17 @@ public class CtrlGame implements Initializable {
         double mouseX = event.getX();
         double mouseY = event.getY();
     
-        if ((isPlayerATurn && "A".equals(Main.clientId)) || (!isPlayerATurn && "B".equals(Main.clientId))) {
+        if ((isPlayerATurn && Main.isPlayer1) || (!isPlayerATurn && !Main.isPlayer1)) {
             PlayGrid targetGrid = null;
             Map<String, int[]> targetShips = null;
             Color[][] targetColors;
             
         
-            if (isMouseInsideGrid(player1Grid, mouseX, mouseY) && "B".equals(Main.clientId)) {
+            if (isMouseInsideGrid(player1Grid, mouseX, mouseY) && !Main.isPlayer1) {
                 targetGrid = player1Grid;
                 targetShips = player1Ships;
                 targetColors = player1CellColors;
-            } else if (isMouseInsideGrid(player2Grid, mouseX, mouseY) && "A".equals(Main.clientId)) {
+            } else if (isMouseInsideGrid(player2Grid, mouseX, mouseY) && Main.isPlayer1) {
                 targetGrid = player2Grid;
                 targetShips = player2Ships;
                 targetColors = player2CellColors;
@@ -341,7 +350,7 @@ public class CtrlGame implements Initializable {
         drawGrid(player2Grid, enemyGridStartX, enemyGridStartY);
 
          // Draw Ships
-         if ("A".equals(Main.clientId)) {
+         if (Main.isPlayer1) {
            drawPlayerShips(player1Grid, player1Ships);
         } else {
             drawPlayerShips(player2Grid, player2Ships);
@@ -353,7 +362,7 @@ public class CtrlGame implements Initializable {
         // Draw mouse circles
         for (String clientId : clientMousePositions.keySet()) {
             JSONObject position = clientMousePositions.get(clientId);
-            if ("A".equals(clientId)) {
+            if (Main.isPlayer1) {
                 gc.setFill(Color.BLUE);
             } else {
                 gc.setFill(Color.GREEN);
@@ -421,15 +430,7 @@ public class CtrlGame implements Initializable {
         }
     }
 
-    public void loadPlayerShips(String playerId, Map<String, int[]> ships) {
-        if (playerId.equals("player1")) {
-            player1Ships.clear();
-            player1Ships.putAll(ships); 
-        } else if (playerId.equals("player2")) {
-            player2Ships.clear();
-            player2Ships.putAll(ships); 
-        }
-    }
+    
 
     private void drawHitCells(PlayGrid grid, Color[][] cellColors) {
         double cellSize = grid.getCellSize();

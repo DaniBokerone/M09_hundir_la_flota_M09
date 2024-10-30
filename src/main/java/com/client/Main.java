@@ -19,6 +19,9 @@ public class Main extends Application {
 
     public static UtilsWS wsClient;
 
+    public static boolean isPlayer1 = false;
+    public static boolean enemyReady = false;
+
     public static String clientId = "";
     public static CtrlConfig ctrlConfig;
     public static CtrlWait ctrlWait;
@@ -35,7 +38,7 @@ public class Main extends Application {
     public void start(Stage stage) throws Exception {
 
         final int windowWidth = 800;
-        final int windowHeight = 300;
+        final int windowHeight = 400;
 
         UtilsViews.parentContainer.setStyle("-fx-font: 14 arial;");
         UtilsViews.addView(getClass(), "ViewConfig", "/assets/viewConfig.fxml"); 
@@ -105,20 +108,29 @@ public class Main extends Application {
     }
    
     private static void wsMessage(String response) {
-        // System.out.println(response);
         JSONObject msgObj = new JSONObject(response);
         switch (msgObj.getString("type")) {
+            case "playerInfo":
+                clientId = msgObj.getString("clientId");
+                isPlayer1 = msgObj.getBoolean("isPlayer1");
+                System.out.println("Player assigned: " + (isPlayer1 ? "Player 1" : "Player 2"));
+                break;
             case "clients":
-                if (clientId == "") {
+                if (clientId.isEmpty()) {
                     clientId = msgObj.getString("id");
                 }
-                if (UtilsViews.getActiveView() != "ViewWait") {
+                if (!"ViewWait".equals(UtilsViews.getActiveView())) {
                     UtilsViews.setViewAnimating("ViewWait");
                 }
                 List<String> stringList = jsonArrayToList(msgObj.getJSONArray("list"), String.class);
-                if (stringList.size() > 0) { ctrlWait.txtPlayer0.setText(stringList.get(0)); }
-                if (stringList.size() > 1) { ctrlWait.txtPlayer1.setText(stringList.get(1)); }
+                if (stringList.size() > 0) {
+                    ctrlWait.txtPlayer0.setText(stringList.get(0));
+                }
+                if (stringList.size() > 1) {
+                    ctrlWait.txtPlayer1.setText(stringList.get(1));
+                }
                 break;
+            
             case "countdown":
                 int value = msgObj.getInt("value");
                 String txt = String.valueOf(value);
@@ -131,13 +143,22 @@ public class Main extends Application {
                 ctrlWait.txtTitle.setText(txt);
                 break;
             case "serverMouseMoving":
-                ctrlPlay.setPlayersMousePositions(msgObj.getJSONObject("positions"));
                 //Descomentar para ver vista GAME y comentar linea superior
-                //ctrlGame.setPlayersMousePositions(msgObj.getJSONObject("positions"));
+                ctrlGame.setPlayersMousePositions(msgObj.getJSONObject("positions"));
                 break;
             case "serverSelectableObjects":
-                ctrlPlay.setSelectableObjects(msgObj.getJSONObject("selectableObjects"));
-                //Comentar linea superior para probar vista Game
+                ctrlPlay.setSelectableObjects(msgObj.getJSONObject("selectableObjectsPlayer1"), "player1");
+                ctrlPlay.setSelectableObjects(msgObj.getJSONObject("selectableObjectsPlayer2"), "player2");
+                break;
+            case "rivalReady":
+                enemyReady = isPlayer1 ? msgObj.getBoolean("player2ready") : msgObj.getBoolean("player1ready");
+                ctrlPlay.onRivalReady();
+                break;
+            case "gameReady":
+                ctrlPlay.gameReady();
+                ctrlGame.setupShips(msgObj.getJSONObject("player1ships"), "player1");
+                ctrlGame.setupShips(msgObj.getJSONObject("player2ships"), "player2");
+                UtilsViews.setViewAnimating("ViewGame");
                 break;
         }
     }
