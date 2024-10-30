@@ -118,10 +118,8 @@ public class Main extends WebSocketServer {
                     boolean player1 = obj.getBoolean("player1");
                     if (player1) {
                         rivalReady.put("player1ready", true);
-                        rivalReady.put("player2ready", false);
                         setPlacedShips(obj.getJSONObject("placedShips"), "player1");
                     } else {
-                        rivalReady.put("player1ready", false);
                         rivalReady.put("player2ready", true);
                         setPlacedShips(obj.getJSONObject("placedShips"), "player2");
                     }
@@ -145,11 +143,19 @@ public class Main extends WebSocketServer {
             targetShips = player2PlacedShips;
         }
         targetShips.clear();
+
+
         for (String objectId : objects.keySet()) {
             JSONArray positionArray = objects.getJSONArray(objectId);  
-            int[] positionObject = new int[positionArray.length()];  
-            for (int i = 0; i < positionArray.length(); i++) {
-                positionObject[i] = positionArray.getInt(i);  
+            int[] positionObject = new int[4];  
+            positionObject[0] = positionArray.getInt(1);
+            positionObject[1] = positionArray.getInt(0);
+            if (positionArray.getInt(2) > positionArray.getInt(0)) {
+                positionObject[2] = positionArray.getInt(2) - positionArray.getInt(0) + 1;
+                positionObject[3] = 0;
+            } else {
+                positionObject[2] = positionArray.getInt(3) - positionArray.getInt(1) + 1;
+                positionObject[3] = 1;
             }
             targetShips.put(objectId, positionObject); 
         }
@@ -266,9 +272,11 @@ public class Main extends WebSocketServer {
     }
 
     public void sendGameReady() {
-        if (readyPlayers == 2) {
+        if (readyPlayers >= 2) {
             JSONObject gameReady = new JSONObject();
             gameReady.put("type", "gameReady");
+            gameReady.put("player1ships", player1PlacedShips);
+            gameReady.put("player2ships", player2PlacedShips);
             broadcastMessage(gameReady.toString(), null, null);
         }
     }

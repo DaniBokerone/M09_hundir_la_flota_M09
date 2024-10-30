@@ -37,19 +37,19 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) throws Exception {
 
-        final int windowWidth = 600;
+        final int windowWidth = 800;
         final int windowHeight = 400;
 
         UtilsViews.parentContainer.setStyle("-fx-font: 14 arial;");
         UtilsViews.addView(getClass(), "ViewConfig", "/assets/viewConfig.fxml"); 
         UtilsViews.addView(getClass(), "ViewWait", "/assets/viewWait.fxml");
         UtilsViews.addView(getClass(), "ViewPlay", "/assets/viewPlay.fxml");
-        //UtilsViews.addView(getClass(), "ViewGame", "/assets/viewGame.fxml");
+        UtilsViews.addView(getClass(), "ViewGame", "/assets/viewGame.fxml");
 
         ctrlConfig = (CtrlConfig) UtilsViews.getController("ViewConfig");
         ctrlWait = (CtrlWait) UtilsViews.getController("ViewWait");
         ctrlPlay = (CtrlPlay) UtilsViews.getController("ViewPlay");
-        //ctrlGame = (CtrlGame) UtilsViews.getController("ViewGame");
+        ctrlGame = (CtrlGame) UtilsViews.getController("ViewGame");
 
 
         Scene scene = new Scene(UtilsViews.parentContainer);
@@ -141,6 +141,10 @@ public class Main extends Application {
                 }
                 ctrlWait.txtTitle.setText(txt);
                 break;
+            case "serverMouseMoving":
+                //Descomentar para ver vista GAME y comentar linea superior
+                ctrlGame.setPlayersMousePositions(msgObj.getJSONObject("positions"));
+                break;
             case "serverSelectableObjects":
                 ctrlPlay.setSelectableObjects(msgObj.getJSONObject("selectableObjectsPlayer1"), "player1");
                 ctrlPlay.setSelectableObjects(msgObj.getJSONObject("selectableObjectsPlayer2"), "player2");
@@ -151,8 +155,9 @@ public class Main extends Application {
                 break;
             case "gameReady":
                 ctrlPlay.gameReady();
-                //Descomenta esto para probarlo tu si pasa al game
-                //UtilsViews.setViewAnimating("ViewGame");
+                ctrlGame.setupShips(msgObj.getJSONObject("player1ships"), "player1");
+                ctrlGame.setupShips(msgObj.getJSONObject("player2ships"), "player2");
+                UtilsViews.setViewAnimating("ViewGame");
                 break;
         }
     }
