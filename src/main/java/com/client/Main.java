@@ -151,6 +151,7 @@ public class Main extends Application {
                 break;
             case "gameReady":
                 ctrlPlay.gameReady();
+                //Descomenta esto para probarlo tu si pasa al game
                 //UtilsViews.setViewAnimating("ViewGame");
                 break;
         }
