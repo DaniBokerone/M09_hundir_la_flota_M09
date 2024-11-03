@@ -2,29 +2,27 @@ package com.server;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.java_websocket.WebSocket;
+import org.java_websocket.exceptions.WebsocketNotConnectedException;
+import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.UserInterruptException;
-import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-
-import java.net.InetSocketAddress;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Arrays;
-import java.util.UUID;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.java_websocket.exceptions.WebsocketNotConnectedException;
 
 public class Main extends WebSocketServer {
 
@@ -126,6 +124,10 @@ public class Main extends WebSocketServer {
                     readyPlayers += 1;
                     sendGameReady();
                     broadcastMessage(rivalReady.toString(), null, null);
+
+                case "playerShot":
+                    handlePlayerShot(obj, conn);
+                    break;
                     
 
                     
@@ -160,6 +162,58 @@ public class Main extends WebSocketServer {
             targetShips.put(objectId, positionObject); 
         }
     }
+
+    private void handlePlayerShot(JSONObject obj, WebSocket shooter) {
+        if (obj.has("clientId")) {
+            String clientId = obj.getString("clientId");
+            int x = obj.getInt("x");
+            int y = obj.getInt("y");
+        
+            boolean hit = checkHit(x, y, shooter);
+    
+            JSONObject shotResult = new JSONObject();
+            shotResult.put("type", "shotResult");
+            shotResult.put("clientId", clientId);
+            shotResult.put("x", x);
+            shotResult.put("y", y);
+            shotResult.put("result", hit ? "hit" : "miss");
+    
+    
+            broadcastMessage(shotResult.toString(), null, null);
+        }   
+    }
+    
+    
+
+    private boolean checkHit(int x, int y, WebSocket shooter) {
+        String clientId = clients.get(shooter);
+        Map<String, int[]> targetShips = clientId.equals("player1") ? player2PlacedShips : player1PlacedShips;
+    
+        for (Map.Entry<String, int[]> entry : targetShips.entrySet()) {
+            int[] position = entry.getValue();
+            int startY = position[0];
+            int startX = position[1];
+            int length = position[2];
+            int direction = position[3];
+    
+            if (direction == 0) { 
+                for (int i = 0; i < length; i++) {
+                    if (startY == y && (startX + i) == x) {
+                        return true; // Hit
+                    }
+                }
+            } else if (direction == 1) {
+                for (int i = 0; i < length; i++) {
+                    if ((startY + i) == y && startX == x) {
+                        return true; // Hit
+                    }
+                }
+            }
+        }
+        return false; // Miss
+    }
+    
+    
 
     private void broadcastMessage(String message, WebSocket sender, List<String> targetClients) {
         for (Map.Entry<WebSocket, String> entry : clients.entrySet()) {

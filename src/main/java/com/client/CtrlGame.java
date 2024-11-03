@@ -84,6 +84,9 @@ public class CtrlGame implements Initializable {
         
         canvas.setOnMouseMoved(this::setOnMouseMoved);
         canvas.setOnMouseClicked(this::onMouseClicked);
+        if (Main.wsClient != null) {
+            Main.wsClient.onMessage(this::wsMessage);
+        }
 
         // Define grid
         player1Grid = new PlayGrid(gridStartX, gridStartY, 25, 10, 10);
@@ -255,6 +258,8 @@ public class CtrlGame implements Initializable {
 
                     switchTurn();
                 }
+
+                sendShootMsg(col,row);
             }
         }
     }
@@ -568,14 +573,75 @@ public class CtrlGame implements Initializable {
 
     }
 
+
+    /*-------------------------- Server Requests logic --------------------------*/
+
+    private void sendShootMsg(int col, int row){
+        JSONObject shotMessage = new JSONObject();
+        shotMessage.put("type", "playerShot");
+        shotMessage.put("clientId", Main.clientId);
+        shotMessage.put("x", col);
+        shotMessage.put("y", row);
+    
+        if (Main.wsClient != null) {
+            Main.wsClient.safeSend(shotMessage.toString());
+        }
+    }
+
+    public void wsMessage(String message) {
+        JSONObject obj = new JSONObject(message);
+        
+        if ("shotResult".equals(obj.getString("type"))) {
+
+            updateBoardWithShotResult(obj);
+        }
+    }
+
+    public void updateBoardWithShotResult(JSONObject obj) {
+        String result = obj.getString("result"); // "hit", "miss", "sunk"
+        String clientId = obj.getString("clientId");
+        int col = obj.getInt("x");
+        int row = obj.getInt("y");
+    
+        Color[][] targetColors;
+        
+        if (Main.isPlayer1) {
+            targetColors =player1CellColors ;
+        } else {
+            targetColors = player2CellColors; 
+        }
+    
+        if(!Main.clientId.equals(clientId)){
+            switch (result) {
+                case "hit":
+                    targetColors[row][col] = Color.YELLOW;
+                    break;
+                case "sunk":
+                    JSONArray sunkCells = obj.getJSONArray("sunkCells");
+                    for (int i = 0; i < sunkCells.length(); i++) {
+                        JSONObject cell = sunkCells.getJSONObject(i);
+                        int sunkRow = cell.getInt("y");
+                        int sunkCol = cell.getInt("x");
+                        targetColors[sunkRow][sunkCol] = Color.RED;
+                    }
+                    break;
+                case "miss":
+                    targetColors[row][col] = Color.BLUE;
+                    break;
+                default:
+                    break;
+            }
+        
+            draw();
+        }
+    } 
+    
     /*-------------------------- End game logic --------------------------*/
 
     private void showVictoryScreen() {
         //stop();
     
-        
         System.out.println("¡Victoria! Has hundido todos los barcos enemigos.");
-    
         
     }
 }

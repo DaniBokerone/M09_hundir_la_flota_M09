@@ -6,12 +6,12 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.animation.PauseTransition;
-import javafx.scene.paint.Color;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -159,6 +159,9 @@ public class Main extends Application {
                 ctrlGame.setupShips(msgObj.getJSONObject("player1ships"), "player1");
                 ctrlGame.setupShips(msgObj.getJSONObject("player2ships"), "player2");
                 UtilsViews.setViewAnimating("ViewGame");
+                break;
+            case "shotResult":
+                ctrlGame.updateBoardWithShotResult(msgObj);
                 break;
         }
     }
