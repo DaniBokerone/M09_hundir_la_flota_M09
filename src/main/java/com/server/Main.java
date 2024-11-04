@@ -39,6 +39,9 @@ public class Main extends WebSocketServer {
     private Map<String, int[]> player1PlacedShips = new HashMap<>();
     private Map<String, int[]> player2PlacedShips = new HashMap<>();
 
+    private boolean  playerATurn = true; // 1 = Player1 && 2 = Player2
+    private int timer = 60;
+
     public Main(InetSocketAddress address) {
         super(address);
         clients = new ConcurrentHashMap<>();
@@ -177,6 +180,12 @@ public class Main extends WebSocketServer {
             shotResult.put("x", x);
             shotResult.put("y", y);
             shotResult.put("result", hit ? "hit" : "miss");
+
+            if (hit) {
+                updateTimer();
+            }else{
+                changeTurn();
+            }
     
     
             broadcastMessage(shotResult.toString(), null, null);
@@ -331,8 +340,52 @@ public class Main extends WebSocketServer {
             gameReady.put("type", "gameReady");
             gameReady.put("player1ships", player1PlacedShips);
             gameReady.put("player2ships", player2PlacedShips);
+            gameReady.put("currentTurn", playerATurn);
+            gameReady.put("timer", timer);
             broadcastMessage(gameReady.toString(), null, null);
+
+            startTimer();
         }
+    }
+
+    private void startTimer() {
+        new Thread(() -> {
+            while (timer > 0) {
+                try {
+                    Thread.sleep(1000);
+                    timer--;
+                    JSONObject timerUpdate = new JSONObject();
+                    timerUpdate.put("type", "timerUpdate");
+                    timerUpdate.put("timer", timer);
+                    timerUpdate.put("currentTurn", playerATurn);
+                    broadcastMessage(timerUpdate.toString(), null, null);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            changeTurn();
+        }).start();
+    }
+
+    private void changeTurn() {
+        playerATurn = (playerATurn) ? false : true;
+        timer = 60;
+        
+        JSONObject turnChange = new JSONObject();
+        turnChange.put("type", "turnChange");
+        turnChange.put("currentTurn", playerATurn);
+        turnChange.put("timer", timer);
+        broadcastMessage(turnChange.toString(), null, null);
+        
+        startTimer();
+    }
+
+    private void updateTimer(){
+        JSONObject timerUpdate = new JSONObject();
+        timerUpdate.put("type", "timerUpdate");
+        timerUpdate.put("timer", 60);
+        timerUpdate.put("currentTurn", playerATurn);
+        broadcastMessage(timerUpdate.toString(), null, null);
     }
 
     public void sendServerSelectableObjects() {

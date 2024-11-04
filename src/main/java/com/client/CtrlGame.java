@@ -62,12 +62,11 @@ public class CtrlGame implements Initializable {
     private boolean isHit = false; 
     private boolean isSunk = false; 
 
-    // Turn timer
-    private Timeline turnTimer;
-    //private final int turnDuration = 60; // Commented for test
-    private final int turnDuration = 20; 
-    private int timeRemaining = turnDuration; 
-    private boolean isPlayerATurn = true; // Flag to indicate if it's player A turn
+    private int timerValue;
+    private Timeline timer;
+    private int remainingTime;
+    private boolean isPlayerATurn = true;
+    
 
     /*-------------------------- Start code --------------------------*/
 
@@ -95,19 +94,6 @@ public class CtrlGame implements Initializable {
         // Start run/draw timer bucle
         animationTimer = new PlayTimer(this::run, this::draw, 0);
         start();
-
-        //Initialize countdown for turns
-        //TODO - this should be managed by server
-        turnTimer = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
-            timeRemaining--;
-            timerLabel.setText("Remaining Time: " + timeRemaining + "s");
-            if (timeRemaining <= 0) {
-                switchTurn(); 
-            }
-        }));
-        turnTimer.setCycleCount(Timeline.INDEFINITE);
-
-        startTurnTimer();
 
     }
 
@@ -247,7 +233,6 @@ public class CtrlGame implements Initializable {
                         }
                     }
 
-                    startTurnTimer();
                 } else {
                     // Water
                     System.out.println("Fallo");
@@ -256,7 +241,6 @@ public class CtrlGame implements Initializable {
                     targetColors[row][col] = Color.BLUE;                    
                     isSunk = false;
 
-                    switchTurn();
                 }
 
                 sendShootMsg(col,row);
@@ -554,23 +538,41 @@ public class CtrlGame implements Initializable {
 
     /*-------------------------- Timer logic --------------------------*/
 
+    public void setupTimer(int timerValue, boolean playerATurn) {
+        this.remainingTime = timerValue;
 
-    //Turn Timer
-    private void startTurnTimer() {
-        timeRemaining = turnDuration; 
-        timerLabel.setText("Remaining Time: " + timeRemaining + "s");
-        turnTimer.playFromStart();
+        timer = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+            remainingTime--;
+            updateTimer(remainingTime);
+            if (remainingTime <= 0) {
+                timer.stop();
+            }
+        }));
+
+        timer.setCycleCount(Timeline.INDEFINITE);
+        timer.play();
     }
 
-    private void switchTurn() {
-        isPlayerATurn = !isPlayerATurn; 
-        timeRemaining = turnDuration; 
-        timerLabel.setText("Remaining Time: " + timeRemaining + "s"); 
+    public void updateTimer(int remainingTime) {
+        this.remainingTime = remainingTime;
+        timerLabel.setText(formatTime(remainingTime));
+    }
 
-        turnLabel.setText(isPlayerATurn ? "Player A turn" : "Player B turn");
+    private String formatTime(int seconds) {
+        int minutes = seconds / 60;
+        int secs = seconds % 60;
+        return String.format("%02d:%02d", minutes, secs);
+    }
 
-        turnTimer.playFromStart(); 
-
+    public void onTurnChange(boolean playerATurn,int timerValue) {
+        this.isPlayerATurn = playerATurn;
+        if (isPlayerATurn) {
+            turnLabel.setText("Player A turn");
+            updateTimer(timerValue);
+        } else {
+            turnLabel.setText("Player B turn");
+            
+        }
     }
 
 

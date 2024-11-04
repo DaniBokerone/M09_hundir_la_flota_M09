@@ -158,10 +158,22 @@ public class Main extends Application {
                 ctrlPlay.gameReady();
                 ctrlGame.setupShips(msgObj.getJSONObject("player1ships"), "player1");
                 ctrlGame.setupShips(msgObj.getJSONObject("player2ships"), "player2");
+                ctrlGame.setupTimer(msgObj.getInt("timer"),msgObj.getBoolean("currentTurn"));
                 UtilsViews.setViewAnimating("ViewGame");
                 break;
             case "shotResult":
                 ctrlGame.updateBoardWithShotResult(msgObj);
+                break;
+            case "turnChange":
+            System.out.println(msgObj.toString());
+                boolean isPlayerATurn = msgObj.getBoolean("currentTurn");
+                int restartTime = msgObj.getInt("timer");
+                ctrlGame.onTurnChange(isPlayerATurn,restartTime);
+                break;
+            case "timerUpdate":
+            System.out.println(msgObj.toString());
+                int remainingTime = msgObj.getInt("timer");
+                ctrlGame.updateTimer(remainingTime);
                 break;
         }
     }
