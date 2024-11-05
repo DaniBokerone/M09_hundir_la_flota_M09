@@ -591,6 +591,17 @@ public class CtrlGame implements Initializable {
         }
     }
 
+    private void sendWinMsg(){
+        JSONObject winMessage = new JSONObject();
+        winMessage.put("type", "playerWon");
+        winMessage.put("clientId", Main.clientId);
+        winMessage.put("isPlayer1", Main.isPlayer1);
+    
+        if (Main.wsClient != null) {
+            Main.wsClient.safeSend(winMessage.toString());
+        }
+    }
+
     public void wsMessage(String message) {
         JSONObject obj = new JSONObject(message);
         
@@ -643,8 +654,7 @@ public class CtrlGame implements Initializable {
 
     private void showVictoryScreen() {
         //stop();
-    
         System.out.println("¡Victoria! Has hundido todos los barcos enemigos.");
-        
+        sendWinMsg();
     }
 }

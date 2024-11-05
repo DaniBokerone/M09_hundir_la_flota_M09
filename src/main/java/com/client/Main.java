@@ -27,6 +27,7 @@ public class Main extends Application {
     public static CtrlWait ctrlWait;
     public static CtrlPlay ctrlPlay;
     public static CtrlGame ctrlGame;
+    public static CtrlEndGame ctrlEndGame;
 
     public static void main(String[] args) {
 
@@ -45,11 +46,13 @@ public class Main extends Application {
         UtilsViews.addView(getClass(), "ViewWait", "/assets/viewWait.fxml");
         UtilsViews.addView(getClass(), "ViewPlay", "/assets/viewPlay.fxml");
         UtilsViews.addView(getClass(), "ViewGame", "/assets/viewGame.fxml");
+        UtilsViews.addView(getClass(), "ViewEndGame", "/assets/viewEndGame.fxml");
 
         ctrlConfig = (CtrlConfig) UtilsViews.getController("ViewConfig");
         ctrlWait = (CtrlWait) UtilsViews.getController("ViewWait");
         ctrlPlay = (CtrlPlay) UtilsViews.getController("ViewPlay");
         ctrlGame = (CtrlGame) UtilsViews.getController("ViewGame");
+        ctrlEndGame = (CtrlEndGame) UtilsViews.getController("ViewEndGame");
 
         Scene scene = new Scene(UtilsViews.parentContainer);
         
@@ -165,15 +168,19 @@ public class Main extends Application {
                 ctrlGame.updateBoardWithShotResult(msgObj);
                 break;
             case "turnChange":
-            System.out.println(msgObj.toString());
                 boolean isPlayerATurn = msgObj.getBoolean("currentTurn");
                 int restartTime = msgObj.getInt("timer");
                 ctrlGame.onTurnChange(isPlayerATurn,restartTime);
                 break;
             case "timerUpdate":
-            System.out.println(msgObj.toString());
                 int remainingTime = msgObj.getInt("timer");
                 ctrlGame.updateTimer(remainingTime);
+                break;
+            case "endGame":
+                String winner = msgObj.getString("winner");
+                Boolean isWinner = winner.equals(clientId) ? true : false;
+                ctrlEndGame.setMessageGame(isWinner);
+                UtilsViews.setViewAnimating("ViewEndGame");
                 break;
         }
     }

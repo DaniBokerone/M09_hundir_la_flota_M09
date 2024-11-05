@@ -133,6 +133,20 @@ public class Main extends WebSocketServer {
                 case "playerShot":
                     handlePlayerShot(obj, conn);
                     break;
+                // Servidor
+                case "playerWon":
+                    String winnerClientId = obj.getString("clientId");
+                    boolean isPlayer1 = obj.getBoolean("isPlayer1");
+
+                    JSONObject endGameMessage = new JSONObject();
+                    endGameMessage.put("type", "endGame");
+
+                    endGameMessage.put("winner", winnerClientId);
+                    
+                    broadcastMessage(endGameMessage.toString(), null, null);
+
+                    break;
+
                     
 
                     
