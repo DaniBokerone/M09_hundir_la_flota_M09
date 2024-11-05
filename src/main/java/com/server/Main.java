@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.java_websocket.WebSocket;
 import org.java_websocket.exceptions.WebsocketNotConnectedException;
@@ -27,6 +28,7 @@ import org.json.JSONObject;
 public class Main extends WebSocketServer {
 
     private static final List<String> PLAYER_NAMES = Arrays.asList("A", "B");
+
 
     private Map<WebSocket, String> clients;
     private int readyPlayers = 0;
@@ -90,6 +92,12 @@ public class Main extends WebSocketServer {
         clients.remove(conn);
         availableNames.add(sessionId);
         System.out.println("WebSocket client with Session ID " + sessionId + " disconnected. Reason: " + reason);
+        readyPlayers = 0;
+        selectableObjectsPlayer1 = new HashMap<>();
+        selectableObjectsPlayer2 = new HashMap<>();
+        player1PlacedShips = new HashMap<>();
+        player2PlacedShips = new HashMap<>();
+
         sendClientsList();
     }
 
@@ -99,8 +107,23 @@ public class Main extends WebSocketServer {
         
         if (obj.has("type")) {
             String type = obj.getString("type");
-    
+            
             switch (type) {
+                case "username":
+                    String clientID = obj.getString("id");
+                    String username = obj.getString("user");
+
+                    // Check if the map contains this client ID and update it with the username
+                    for (Map.Entry<WebSocket, String> entry : clients.entrySet()) {
+                        if (entry.getValue().equals(clientID)) {
+                            clients.put(conn, username); // Replace client ID with username
+                            break;
+                        }
+                    }
+
+                    // Notify all clients about the updated clients list
+                    sendClientsList();
+                    break;
                 case "clientMouseMoving":
                     // Obtenim el clientId del missatge
                     String clientId = obj.getString("clientId");   
@@ -332,21 +355,28 @@ public class Main extends WebSocketServer {
     public void sendCountdown() {
         int requiredNumberOfClients = 2;
         if (clients.size() == requiredNumberOfClients) {
-            for (int i = 5; i >= 0; i--) {
-                JSONObject msg = new JSONObject();
-                msg.put("type", "countdown");
-                msg.put("value", i);
-                broadcastMessage(msg.toString(), null, null);
-                if (i == 0) {
-                    sendServerSelectableObjects();
-                } else {
-                    try {
-                        Thread.sleep(750);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+            try {
+                sendClientsList();
+                Thread.sleep(1000);
+                for (int i = 5; i >= 0; i--) {
+                    JSONObject msg = new JSONObject();
+                    msg.put("type", "countdown");
+                    msg.put("value", i);
+                    broadcastMessage(msg.toString(), null, null);
+                    if (i == 0) {
+                        sendServerSelectableObjects();
+                    } else {
+                        try {
+                            Thread.sleep(750);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+            
         }
     }
 

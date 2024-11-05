@@ -11,10 +11,15 @@ import javafx.scene.control.TextField;
 public class CtrlConfig implements Initializable {
 
     @FXML
+    public TextField txtUser;
+
+    @FXML
     public TextField txtProtocol;
 
     @FXML
     public TextField txtHost;
+
+
 
     @FXML
     public TextField txtPort;

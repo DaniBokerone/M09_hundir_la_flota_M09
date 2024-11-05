@@ -8,4 +8,5 @@ com\client\CtrlWait.class
 com\client\UtilsWS.class
 com\client\UtilsWS$1.class
 com\client\UtilsViews.class
+com\client\CtrlEndGame.class
 com\client\PlayTimer.class

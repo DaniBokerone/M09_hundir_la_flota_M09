@@ -19,6 +19,9 @@ public class Main extends Application {
 
     public static UtilsWS wsClient;
 
+
+    public static String userName = "";
+    public static String rivalName = "";
     public static boolean isPlayer1 = false;
     public static boolean enemyReady = false;
 
@@ -117,36 +120,46 @@ public class Main extends Application {
                 clientId = msgObj.getString("clientId");
                 isPlayer1 = msgObj.getBoolean("isPlayer1");
                 System.out.println("Player assigned: " + (isPlayer1 ? "Player 1" : "Player 2"));
+
+                userName = ctrlConfig.txtUser.getText();
+
+                JSONObject username = new JSONObject();
+                username.put("type", "username");
+                username.put("id", clientId);
+                username.put("user", userName);
+                if (wsClient != null) {
+                    wsClient.safeSend(username.toString());
+                }
                 break;
             case "clients":
                 if (clientId.isEmpty()) {
                     clientId = msgObj.getString("id");
                 }
+            
                 if (!"ViewWait".equals(UtilsViews.getActiveView())) {
                     UtilsViews.setViewAnimating("ViewWait");
                 }
-                List<String> stringList = jsonArrayToList(msgObj.getJSONArray("list"), String.class);
-                if (stringList.size() > 0) {
-                    ctrlWait.txtPlayer0.setText(stringList.get(0));
+            
+                JSONArray clientList = msgObj.getJSONArray("list");
+                List<String> clientNames = jsonArrayToList(clientList, String.class);
+            
+                if (clientNames.size() > 0) {
+                    ctrlWait.txtPlayer0.setText(clientNames.get(0).equals(clientId) ? userName : clientNames.get(0));
                 }
-                if (stringList.size() > 1) {
-                    ctrlWait.txtPlayer1.setText(stringList.get(1));
+                if (clientNames.size() > 1) {
+                    ctrlWait.txtPlayer1.setText(clientNames.get(1).equals(clientId) ? userName : clientNames.get(1));
                 }
                 break;
-            
             case "countdown":
                 int value = msgObj.getInt("value");
                 String txt = String.valueOf(value);
                 if (value == 0) {
                     UtilsViews.setViewAnimating("ViewPlay");
-                    //Descomentar para ver vista GAME y comentar linea superior
-                    //UtilsViews.setViewAnimating("ViewGame");
                     txt = "GO";
                 }
                 ctrlWait.txtTitle.setText(txt);
                 break;
             case "serverMouseMoving":
-                //Descomentar para ver vista GAME y comentar linea superior
                 ctrlGame.setPlayersMousePositions(msgObj.getJSONObject("positions"));
                 break;
             case "serverSelectableObjects":
