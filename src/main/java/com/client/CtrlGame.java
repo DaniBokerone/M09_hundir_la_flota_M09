@@ -582,6 +582,7 @@ public class CtrlGame implements Initializable {
         JSONObject shotMessage = new JSONObject();
         shotMessage.put("type", "playerShot");
         shotMessage.put("clientId", Main.clientId);
+        shotMessage.put("isPlayer1", Main.isPlayer1);
         shotMessage.put("x", col);
         shotMessage.put("y", row);
     

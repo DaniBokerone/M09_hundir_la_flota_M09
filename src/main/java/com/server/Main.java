@@ -66,6 +66,8 @@ public class Main extends WebSocketServer {
         clients.put(conn, sessionId);
     
         boolean isPlayer1 = (clients.size() == 1);  
+
+        
     
         JSONObject playerInfo = new JSONObject();
         playerInfo.put("type", "playerInfo");
@@ -169,10 +171,11 @@ public class Main extends WebSocketServer {
     private void handlePlayerShot(JSONObject obj, WebSocket shooter) {
         if (obj.has("clientId")) {
             String clientId = obj.getString("clientId");
+            boolean isPlayer1 = obj.getBoolean("isPlayer1");
             int x = obj.getInt("x");
             int y = obj.getInt("y");
         
-            boolean hit = checkHit(x, y, shooter);
+            boolean hit = checkHit(x, y, shooter,isPlayer1);
     
             JSONObject shotResult = new JSONObject();
             shotResult.put("type", "shotResult");
@@ -194,9 +197,8 @@ public class Main extends WebSocketServer {
     
     
 
-    private boolean checkHit(int x, int y, WebSocket shooter) {
-        String clientId = clients.get(shooter);
-        Map<String, int[]> targetShips = clientId.equals("player1") ? player2PlacedShips : player1PlacedShips;
+    private boolean checkHit(int x, int y, WebSocket shooter,boolean isPlayer1) {
+        Map<String, int[]> targetShips = isPlayer1 ? player2PlacedShips : player1PlacedShips;
     
         for (Map.Entry<String, int[]> entry : targetShips.entrySet()) {
             int[] position = entry.getValue();
